@@ -1,0 +1,22 @@
+#! /bin/bash
+# This is our first script
+CURRENTDATE=$(date +"%x %r %Z" )
+if [ ! -z "$0" ];then
+    if [ -e "$1" ];then
+ 
+        echo $1 'file already exsist'
+    else
+        echo '#!/usr/bin/env python3' >$1
+        echo '# -*- coding: UTF-8 -*-' >>$1
+	echo '""" ' >>$1
+	echo date: ${CURRENTDATE} >>$1
+        echo '@author :kkwang' >>$1
+	echo '""" ' >>$1
+	echo $1 'success'
+        
+    fi
+else
+    echo 'what is your name'
+fi
+
+        
