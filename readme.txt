@@ -1,13 +1,12 @@
 class brainspanwork 
     class sample_charactor(brainspanwork)
         function : filter the tissue that less then five 
-        function : find which columns is which tissue 
-        function : seperate the matrix by age 
-        seperate : the matrix by sex
+        function : find which columns is which tissue (find_columns_tissue)
+        function : seperate the matrix by age (seperate_by_time)
+        seperate : the matrix by sex (seperate_by_sex)
     (not done)
-    class expression_deal_with(brainspanwork)
-        function : tissue expression matrix  return a work matrix 
-        (work on work matrix)
+    class expression_deal_with(sample_charactor)
+        function : tissue expression matrix  return a work matrix(tissue_matrix_workon)
 
         function : 50% of the sample have this gene return a filted dataframe 
         function : check normalized or not ,box plot of data

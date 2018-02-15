@@ -9,6 +9,7 @@ import pandas as pd
 from collections import Counter
 import matplotlib.pyplot as plt
 import os
+import numpy as np 
 
 filepath='/Users/kkwang/mywork/gene_array_matrix_csv'
 class brainspanwork(object): 
@@ -76,6 +77,7 @@ class sample_charactor(brainspanwork):
         """find which columns is which tissue 
 
         """
+        print(type(sample_number))
         fields={key:[] for key in sample_number.keys()}
 
         for keys,values in sample_number.items(): 
@@ -111,15 +113,61 @@ class sample_charactor(brainspanwork):
         return time_dic
 
         
-
+class expression_deal_with(sample_charactor):
+    def __init__(self):
+        super().__init__()
+    
+    def tissue_matrix_workon(self,columns_tissue,tissue):
+        """seperate the whole matrix into tissue matrix 
+        """
+        col_name=columns_tissue[tissue]
+        expression_matrix=brainspanwork.import_expression_matrix(self)
+        tissue_matrix=expression_matrix.loc[:,col_name]
+        tissue_matrix['gene_symbol']=expression_matrix['gene_symbol'].tolist()
+        print(tissue_matrix['gene_symbol'][:10])
+        print('shape of this matrix :{0}'.format(tissue_matrix.shape))
+        return tissue_matrix
+    def boxplot_of_matrix(self,tissue_matrix,tissue):
+        """box plot of the data/tissue matrix 
+    
+        """
+        bp=tissue_matrix.iloc[:,:-1].boxplot(sym='r*',patch_artist=True,meanline=True,showfliers=False,return_type='dict')
+        for box in bp['boxes']:
+            box.set(color='#7570b3',linewidth=1)
+            box.set(facecolor='#1b9e77')
+        for whisker in bp['whiskers']:
+            whisker.set(color='r',linewidth=1)
+        for caps in bp['caps']:
+            caps.set(color='g',linewidth=3)
+        for median in bp['medians']:
+            median.set(color="DarkBlue",linewidth=3)
+        plt.grid(False)
+        plt.tight_layout(2,1)
+        plt.xticks(rotation=45)
+        plt.savefig("{0}.boxplot.pdf".format(tissue),figsize=(12,7))
+    def filter_matrix_workon(self,tissue_matrix):
+        """if a gene detected in 80% of the sample
+            keep it 
+        """
+        df_copy=tissue_matrix.copy()
+        df_copy_bool=df_copy.astype(bool)
+        df_copy=df_copy_bool.astype(int)
+        df_copy['sum']=df_copy.sum(axis=1)
+        print(df_copy['sum'])
+        df_copy=df_copy[df_copy['sum']>0.8*len(df_copy.columns)]
+        df_index=df_copy.index.tolist()
+        df_want=tissue_matrix.loc[df_index,:]
+        print(df_want.shape)
+        return df_want
+        
 def main():
-    work=brainspanwork()
+    work=brainspanwork() # shili
     expression_matrix=work.import_expression_matrix()
     
-    sample=sample_charactor()
+    sample=sample_charactor() # shili
     tissue_names=sample.get_tissue_names() # return a list of full columns lens which tissue it is 
     sample_number=sample.find_sample_num() # return a sorted tissue and number of it type:dict
-
+    print(type(sample_number))
     filter_by_five=False #<-- change whether you what to filter rare tissue 
 
     if filter_by_five is True:
@@ -128,10 +176,14 @@ def main():
         sample_number={key:value for key,value in sample_number.items() if value > 5}
     
     columns_tissue=sample.find_columns_tissue(sample_number,tissue_names) #find which cloumns is which tissue (
-    sexual_data=sample.seperate_by_sex()
-   
-    print(sexual_data)
-    time_data=sample.seperate_by_time()
-    print(time_data)
+    #sexual_data=sample.seperate_by_sex()
+    #time_data=sample.seperate_by_time()
+    print(columns_tissue)
+    deal_with=expression_deal_with() # shili
+    tissue='AMY'  #<--change you tissue there
+    tissue_matrix=deal_with.tissue_matrix_workon(columns_tissue,tissue)
+    deal_with.boxplot_of_matrix(tissue_matrix,tissue) #boxplot of tissue_matrix
+    filted_tissue_matrix=deal_with.filter_matrix_workon(tissue_matrix)
+    filted_tissue_matrix_log2=np.log2(filted_tissue_matrix) 
 if __name__ == "__main__":
     main()
