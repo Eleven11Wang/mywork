@@ -124,13 +124,12 @@ class expression_deal_with(sample_charactor):
         expression_matrix=brainspanwork.import_expression_matrix(self)
         tissue_matrix=expression_matrix.loc[:,col_name]
         tissue_matrix['gene_symbol']=expression_matrix['gene_symbol'].tolist()
-        print(tissue_matrix['gene_symbol'][:10])
-        print('shape of this matrix :{0}'.format(tissue_matrix.shape))
         return tissue_matrix
-    def boxplot_of_matrix(self,tissue_matrix,tissue):
+    def boxplot_of_matrix(self,tissue_matrix,name):
         """box plot of the data/tissue matrix 
     
         """
+        fig=plt.figure()
         bp=tissue_matrix.iloc[:,:-1].boxplot(sym='r*',patch_artist=True,meanline=True,showfliers=False,return_type='dict')
         for box in bp['boxes']:
             box.set(color='#7570b3',linewidth=1)
@@ -144,7 +143,7 @@ class expression_deal_with(sample_charactor):
         plt.grid(False)
         plt.tight_layout(2,1)
         plt.xticks(rotation=45)
-        plt.savefig("{0}.boxplot.pdf".format(tissue),figsize=(12,7))
+        plt.savefig("{0}.boxplot.pdf".format(name),figsize=(12,7))
     def filter_matrix_workon(self,tissue_matrix):
         """if a gene detected in 80% of the sample
             keep it 
@@ -153,13 +152,33 @@ class expression_deal_with(sample_charactor):
         df_copy_bool=df_copy.astype(bool)
         df_copy=df_copy_bool.astype(int)
         df_copy['sum']=df_copy.sum(axis=1)
-        print(df_copy['sum'])
         df_copy=df_copy[df_copy['sum']>0.8*len(df_copy.columns)]
         df_index=df_copy.index.tolist()
         df_want=tissue_matrix.loc[df_index,:]
         print(df_want.shape)
         return df_want
-        
+    def upperquantile_normalization(self,tissue_matrix):
+        """ upperquantile normalization of the matrix 
+        """
+        tissue_matrix_c=tissue_matrix.copy().iloc[:,:-1]
+        upperquantile=[]
+        for col in tissue_matrix_c.columns:
+            Q3=tissue_matrix_c.loc[:,col].quantile(0.75)
+            #print('Q3:{0}'.format(Q3))
+            upperquantile.append(Q3)
+            tissue_matrix_c.loc[:,col]=tissue_matrix.loc[:,col]/Q3
+        median_upperquantile=np.median(upperquantile)
+        tissue_matrix_c=tissue_matrix_c * median_upperquantile
+        return tissue_matrix_c
+    def log2_transform(self,filted_tissue_matrix):
+        filted_tissue_matrix_log2=np.log2(filted_tissue_matrix.iloc[:,:-1])
+        filted_tissue_matrix_log2['gene_symbol']=filted_tissue_matrix['gene_symbol']
+        return filted_tissue_matrix
+    def matrix_corr(self,log2_tissue_matrix):
+        df_T=log2_tissue_matrix.iloc[:,:-1].T
+        df_corr=df_T.corr()
+        df_corr['gene_symbol']=log2_tissue_matrix['gene_symbol']
+        return df_corr
 def main():
     work=brainspanwork() # shili
     expression_matrix=work.import_expression_matrix()
@@ -167,7 +186,6 @@ def main():
     sample=sample_charactor() # shili
     tissue_names=sample.get_tissue_names() # return a list of full columns lens which tissue it is 
     sample_number=sample.find_sample_num() # return a sorted tissue and number of it type:dict
-    print(type(sample_number))
     filter_by_five=False #<-- change whether you what to filter rare tissue 
 
     if filter_by_five is True:
@@ -178,12 +196,18 @@ def main():
     columns_tissue=sample.find_columns_tissue(sample_number,tissue_names) #find which cloumns is which tissue (
     #sexual_data=sample.seperate_by_sex()
     #time_data=sample.seperate_by_time()
-    print(columns_tissue)
+    
     deal_with=expression_deal_with() # shili
+    
     tissue='AMY'  #<--change you tissue there
     tissue_matrix=deal_with.tissue_matrix_workon(columns_tissue,tissue)
     deal_with.boxplot_of_matrix(tissue_matrix,tissue) #boxplot of tissue_matrix
+    tissue_matrix_nor=deal_with.upperquantile_normalization(tissue_matrix)
+    deal_with.boxplot_of_matrix(tissue_matrix_nor,"AMY_nor")
     filted_tissue_matrix=deal_with.filter_matrix_workon(tissue_matrix)
-    filted_tissue_matrix_log2=np.log2(filted_tissue_matrix) 
+    log2_tissue_matrix=deal_with.log2_transform(filted_tissue_matrix)
+    print(log2_tissue_matrix.shape)
+    cor_tissue_matrix=deal_with.matrix_corr(log2_tissue_matrix)
+    print(cor_tissue_matrix.shape)
 if __name__ == "__main__":
     main()
