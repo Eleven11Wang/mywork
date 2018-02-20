@@ -10,7 +10,7 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import os
 import numpy as np 
-
+import seaborn as sns
 filepath='/Users/kkwang/mywork/gene_array_matrix_csv'
 class brainspanwork(object): 
     
@@ -178,36 +178,84 @@ class expression_deal_with(sample_charactor):
         df_T=log2_tissue_matrix.iloc[:,:-1].T
         df_corr=df_T.corr()
         df_corr['gene_symbol']=log2_tissue_matrix['gene_symbol']
-        return df_corr
+        df_corr_T=df_corr.T
+        df_corr_T['gene_symbol']=log2_tissue_matrix['gene_symbol']
+        return df_corr_T
+class basic_analysis_plot(sample_charactor):
+    def __init__(self):
+        super().__init__()
+    
+    def KDE_plot(self,log2_tissue_matrix,tissue,columns_tissue):
+        """Kde plot of the matrix,expression distribution
+        """
+        print(log2_tissue_matrix.columns)
+        fig=plt.figure()
+        if tissue=='all':
+            for keys in columns_tissue.keys():
+                #print(columns_tissue[keys])
+                x=log2_tissue_matrix.loc[:,columns_tissue[keys]].as_matrix().ravel()
+                sns.kdeplot(x,label=keys)
+        else:
+            x=log2_tissue_matrix.iloc[:,:-1].as_matrix().ravel()
+            sns.kdeplot(x)
+        plt.legend(fontsize='xx-small')
+        plt.xlabel('log2 expression')
+        plt.ylabel('Distribution')
+        plt.savefig('kde.distribution.pdf')
+
+        
+    def check_expression(self,log2_tissue_matrix):
+        expression_filter=log2_tissue_matrix[log2_tissue_matrix>6].sum(axis=1).notna()
+        exp_matrix=log2_tissue_matrix[expression_filter]
+        print(exp_matrix.shape)
+        return exp_matrix
+
+
+
+
 def main():
     work=brainspanwork() # shili
-    expression_matrix=work.import_expression_matrix()
-    
+    expression_matrix=work.import_expression_matrix()    
     sample=sample_charactor() # shili
     tissue_names=sample.get_tissue_names() # return a list of full columns lens which tissue it is 
     sample_number=sample.find_sample_num() # return a sorted tissue and number of it type:dict
-    filter_by_five=False #<-- change whether you what to filter rare tissue 
-
-    if filter_by_five is True:
-        filted_expression_matrix=sample.filter_rare_tissue(sample_number,tissue_names,expression_matrix) 
-        #filter the tissue that less then five 
-        sample_number={key:value for key,value in sample_number.items() if value > 5}
     
-    columns_tissue=sample.find_columns_tissue(sample_number,tissue_names) #find which cloumns is which tissue (
-    #sexual_data=sample.seperate_by_sex()
+    #sexual_data=sample.seperate_by_sex() # a dict key: male female
     #time_data=sample.seperate_by_time()
     
     deal_with=expression_deal_with() # shili
     
-    tissue='AMY'  #<--change you tissue there
-    tissue_matrix=deal_with.tissue_matrix_workon(columns_tissue,tissue)
-    deal_with.boxplot_of_matrix(tissue_matrix,tissue) #boxplot of tissue_matrix
-    tissue_matrix_nor=deal_with.upperquantile_normalization(tissue_matrix)
-    deal_with.boxplot_of_matrix(tissue_matrix_nor,"AMY_nor")
-    filted_tissue_matrix=deal_with.filter_matrix_workon(tissue_matrix)
-    log2_tissue_matrix=deal_with.log2_transform(filted_tissue_matrix)
-    print(log2_tissue_matrix.shape)
-    cor_tissue_matrix=deal_with.matrix_corr(log2_tissue_matrix)
-    print(cor_tissue_matrix.shape)
+    work_on_tissue=False #<-- True: work on tissue matrix /False: work on whole matrix 
+    tissue='all'
+    if work_on_tissue is True:
+        filted_expression_matrix=sample.filter_rare_tissue(sample_number,tissue_names,expression_matrix) 
+        #filter the tissue that less then five 
+        sample_number={key:value for key,value in sample_number.items() if value > 5}
+    
+        tissue='AMY'  #<--change you tissue there
+        workon_matrix=deal_with.tissue_matrix_workon(columns_tissue,tissue)
+        deal_with.boxplot_of_matrix(workon_matrix,tissue) #boxplot of workon_matrix
+    else:
+        workon_matrix=expression_matrix
+    
+    columns_tissue=sample.find_columns_tissue(sample_number,tissue_names) #find which cloumns is which tissue (
+    workon_matrix_nor=deal_with.upperquantile_normalization(workon_matrix)
+    deal_with.boxplot_of_matrix(workon_matrix_nor,"{0}_upperquantile_normalize".format(tissue))
+    filted_workon_matrix=deal_with.filter_matrix_workon(workon_matrix)
+    log2_workon_matrix=deal_with.log2_transform(filted_workon_matrix)
+    
+    basic_analysis=basic_analysis_plot() #shili
+    basic_analysis.check_expression(log2_workon_matrix)
+    
+    #basic_analysis.KDE_plot(log2_workon_matrix,tissue,columns_tissue)
+
+    #cor_workon_matrix=deal_with.matrix_corr(log2_workon_matrix)
+    #print(cor_workon_matrix.shape)
+
+    
+
+
+
+
 if __name__ == "__main__":
     main()
