@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np 
 import seaborn as sns
+from scipy.spatial.distance import cdist,pdist,squareform
 filepath='/Users/kkwang/mywork/gene_array_matrix_csv'
 class brainspanwork(object): 
     
@@ -77,7 +78,6 @@ class sample_charactor(brainspanwork):
         """find which columns is which tissue 
 
         """
-        print(type(sample_number))
         fields={key:[] for key in sample_number.keys()}
 
         for keys,values in sample_number.items(): 
@@ -111,7 +111,13 @@ class sample_charactor(brainspanwork):
                 if age in age_dic[time]:
                     time_dic[time].append(i+1)
         return time_dic
-
+    def add_pearsonal_info(self,matrix):
+        column_data=brainspanwork.import_colums_metadata(self)
+        ps_info=list(zip(column_data.loc[matrix.iloc[:,:-1].columns.tolist(),'age'].tolist(),
+                             column_data.loc[matrix.iloc[:,:-1].columns.tolist(),'gender'].tolist()))
+        ps_info.append('p_info')
+        
+        return ps_info
         
 class expression_deal_with(sample_charactor):
     def __init__(self):
@@ -130,16 +136,18 @@ class expression_deal_with(sample_charactor):
     
         """
         fig=plt.figure()
-        bp=tissue_matrix.iloc[:,:-1].boxplot(sym='r*',patch_artist=True,meanline=True,showfliers=False,return_type='dict')
+        bp=tissue_matrix.iloc[:,:-1].boxplot(sym='r*',patch_artist=True,meanline=True,showfliers=True,return_type='dict')
         for box in bp['boxes']:
             box.set(color='#7570b3',linewidth=1)
             box.set(facecolor='#1b9e77')
         for whisker in bp['whiskers']:
-            whisker.set(color='r',linewidth=1)
+            whisker.set(color='#7570b3',linestyle='--')
         for caps in bp['caps']:
             caps.set(color='g',linewidth=3)
         for median in bp['medians']:
             median.set(color="DarkBlue",linewidth=3)
+        for flier in  bp['fliers']:
+            flier.set(marker='o', color='#e7298a',alpha=0.5)
         plt.grid(False)
         plt.tight_layout(2,1)
         plt.xticks(rotation=45)
@@ -188,7 +196,6 @@ class basic_analysis_plot(sample_charactor):
     def KDE_plot(self,log2_tissue_matrix,tissue,columns_tissue):
         """Kde plot of the matrix,expression distribution
         """
-        print(log2_tissue_matrix.columns)
         fig=plt.figure()
         if tissue=='all':
             for keys in columns_tissue.keys():
@@ -209,44 +216,65 @@ class basic_analysis_plot(sample_charactor):
         exp_matrix=log2_tissue_matrix[expression_filter]
         print(exp_matrix.shape)
         return exp_matrix
+    def euclidean_distance(self,log2_tissue_matrix):
+        
+        dist=pdist(log2_tissue_matrix.iloc[:,:-1],metric='euclidean')
+        euclidean_distance_matrix=pd.DataFrame(squareform(dist),columns=log2_tissue_matrix.index,index=log2_tissue_matrix.index)
+        print(euclidean_distance_matrix.shape)
+        return euclidean_distance_matrix
+    
+    def sch_clustering(self,log2_tissue_matrix):
+        plt.figure('sch_plot')
+        dist=pdist(log2_tissue_matrix.iloc[:,:-1].T,metric='euclidean')
+        import scipy.cluster.hierarchy as sch
+        Z=sch.linkage(dist,method='average') 
+        #将层级聚类结果以树状图表示出来并保存为plot_dendrogram.png
+        from scipy.cluster.hierarchy import fcluster
+        #clusters = fcluster(Z, t=120, criterion='distance')
+        #print(clusters)
 
-
-
+        P=sch.dendrogram(Z,leaf_rotation=90,leaf_font_size=1,truncate_mode='lastp')
+        plt.savefig('plot_dendrogram.pdf')
 
 def main():
     work=brainspanwork() # shili
-    expression_matrix=work.import_expression_matrix()    
+    expression_matrix=work.import_expression_matrix()
+
     sample=sample_charactor() # shili
     tissue_names=sample.get_tissue_names() # return a list of full columns lens which tissue it is 
     sample_number=sample.find_sample_num() # return a sorted tissue and number of it type:dict
-    
     #sexual_data=sample.seperate_by_sex() # a dict key: male female
     #time_data=sample.seperate_by_time()
     
     deal_with=expression_deal_with() # shili
     
-    work_on_tissue=False #<-- True: work on tissue matrix /False: work on whole matrix 
+    work_on_tissue=True #<-- True: work on tissue matrix /False: work on whole matrix 
     tissue='all'
     if work_on_tissue is True:
         filted_expression_matrix=sample.filter_rare_tissue(sample_number,tissue_names,expression_matrix) 
         #filter the tissue that less then five 
         sample_number={key:value for key,value in sample_number.items() if value > 5}
-    
-        tissue='AMY'  #<--change you tissue there
+        columns_tissue=sample.find_columns_tissue(sample_number,tissue_names) #find which cloumns is which tissue (
+
+        tissue='CBC'  #<--change you tissue there
         workon_matrix=deal_with.tissue_matrix_workon(columns_tissue,tissue)
         deal_with.boxplot_of_matrix(workon_matrix,tissue) #boxplot of workon_matrix
     else:
         workon_matrix=expression_matrix
     
-    columns_tissue=sample.find_columns_tissue(sample_number,tissue_names) #find which cloumns is which tissue (
     workon_matrix_nor=deal_with.upperquantile_normalization(workon_matrix)
     deal_with.boxplot_of_matrix(workon_matrix_nor,"{0}_upperquantile_normalize".format(tissue))
     filted_workon_matrix=deal_with.filter_matrix_workon(workon_matrix)
     log2_workon_matrix=deal_with.log2_transform(filted_workon_matrix)
     
     basic_analysis=basic_analysis_plot() #shili
-    basic_analysis.check_expression(log2_workon_matrix)
-    
+    log2_workon_matrix=basic_analysis.check_expression(log2_workon_matrix)
+    ps_info=sample.add_pearsonal_info(log2_workon_matrix)
+    print(ps_info)
+    log2_workon_matrix.to_csv('{0}_log2_fiter_matrix.tsv'.format(tissue),sep='\t',index=False)
+    euclidean_distance_matrix=basic_analysis.euclidean_distance(log2_workon_matrix)
+    basic_analysis.sch_clustering(log2_workon_matrix)
+
     #basic_analysis.KDE_plot(log2_workon_matrix,tissue,columns_tissue)
 
     #cor_workon_matrix=deal_with.matrix_corr(log2_workon_matrix)
