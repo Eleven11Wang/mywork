@@ -189,9 +189,10 @@ for mm in mt:    # change the tissue_saple_df into tissue_period_df
         columns_want=[ col for col in tissue_data[mm].iloc[:,:-1].columns.tolist() if min_col<int(col)<=max_col]
         
         dddf[ab[0]]=tissue_data[mm].loc[:,columns_want].mean(axis=1).values
-    dddf['gene_symbol']=tissue_data[mm]['gene_symbol']   
-    dddf.fillna(1,inplace=True)
     dddf['tissue']=mm
+    dddf['gene_symbol']=tissue_data[mm]['gene_symbol']   
+    dddf.fillna(tissue_data[mm].mean().mean(),inplace=True)
+    
     
     period_data[mm]=dddf
   
@@ -293,12 +294,87 @@ gr.add_edges_from(edges)
 
 
 degrees=dict(gr.degree())
+clust_coefficient=nx.clustering(gr)
 values=sorted(set(list(degrees.values())))
 hist_n=[list(degrees.values()).count(x) for x in values]
+
 plt.figure()
-plt.loglog(values,hist_n,'bv')
-plt.xlabel('Degree')
-plt.ylabel('Number of nodes')
+plt.tight_layout(2,1)
+ax1=plt.subplot(121)
+ax1.loglog(values,hist_n,'bv')
+ax1.set_xlabel('Degree')
+ax1.set_ylabel('Number of nodes')
+
+ax2=plt.subplot(122)
+ax2.plot(list(degrees.values()),list(clust_coefficient.values()),'r*')
+ax2.set_xlabel('Degree')
+ax2.set_ylabel('clustering coefficient')
+
+plt.show()
+
+
+gr_compoents=[len(c) for c in sorted(nx.connected_components(gr), key=len, reverse=True)]
+gr_compoents=nx.connected_component_subgraphs(gr)
+
+pos = nx.spring_layout(gr)
+colorlist = [ 'r', 'g', 'b', 'c', 'm', 'y', 'k' ,'orange','grey',]
+wcc = nx.connected_component_subgraphs(gr,gr.nodes)
+wcc_list=list(wcc)
+
+compo_dict={}
+for index, sg in enumerate(wcc_list):  #there's probably a more elegant approach using zip
+    if sg.size()<5 :
+        continue
+    else:
+        compo_dict[index]=res.loc[list(sg.nodes()),'tissue']
+
+
+
+file=open('/Users/kkwang/mywork/list_spci.txt','r')
+list_spci=file.readlines()
+for index, x in enumerate(list_spci):
+    list_spci[index]=x[:-1]
+list_spci=list_spci[1:]
+spci_df=res[res['gene_symbol'].isin(list_spci)]
+#spci_df=spci_df.drop('gene_symbol',axis=1)
+
+new_colnames=['period'+str(x+1) for x in list(range(12))]
+
+
+new_colnames.append('tissue')
+new_colnames.append('gene_symbol')
+spci_df.columns=new_colnames
+
+spci_df['cha']=spci_df.iloc[:,:-2].max(axis=1)-spci_df.iloc[:,:-2].min(axis=1)
+
+spci_sp_df=spci_df[spci_df['cha']>4]
+
+
+
+
+tissus=spci_df['tissue'].unique()
+
+fig, axes = plt.subplots(nrows=4, ncols=4, figsize=(12, 9))
+for i in  range(len(tissus)):
+    row=int(i/4)
+    col=i%4
+    
+    print(row,col)
+    try:
+        tissue_df=spci_sp_df[spci_sp_df['tissue']==tissus[i]]
+        tissue_df.iloc[:,:-3].T.plot(ax=axes[row,col],title=tissus[i],legend=False)
+    except:
+        print('{} is not in tissus'.format(tissus[i]))
+        ax = axes[row,col]
+        ax.plot(1,1,'bo')
+        ax.set_title(tissus[i])
+    plt.tight_layout() 
+plt.show()
+    
+    
+#from pandas.plotting import parallel_coordinates
+#parallel_coordinates(spci_sp_df.iloc[:,:-2], 'tissue')
+    
 
 
 
