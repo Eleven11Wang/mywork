@@ -69,7 +69,7 @@ common_genes=[]
 
 
 for x in gene_count_dict.items():
-    if x[1]>=8:
+    if x[1]>=4:
         common_genes.append(x[0])
     else:
         specific_genes.append(x[0])  # find shared genes and specific genes
@@ -78,6 +78,11 @@ for x in gene_count_dict.items():
 common_gene_file=open('common_gene_file.txt','w')
 common_gene_file.write("\n".join(common_genes))
 common_gene_file.close()
+
+
+specific_gene_file=open('specific_gene_file.txt','w')
+specific_gene_file.write("\n".join(specific_genes))
+specific_gene_file.close()
 
 
 
@@ -124,7 +129,7 @@ nx.draw_networkx_labels(G,pos)
 
 tissue_left=list(set(mt)-set(['STR','AMY','HIP','MD','CBC']))
 df=df.loc[tissue_left,:]
-km = KMeans(n_clusters=3).fit(df)
+km = KMeans(n_clusters=2).fit(df)
 km_labels=km.labels_.tolist()
 
 
@@ -169,7 +174,7 @@ share_tissue_heatmap.savefig('share_tissue_heatmap.png')
  
 for mm in mt:   # tissue-data formation tissue: expression_df
     tissue_matrix=pd.read_csv('/Users/kkwang/mywork/{}_log2_fiter_matrix.tsv'.format(mm),index_col=None,header=0,sep='\t')
-    tissue_matrix=tissue_matrix[tissue_matrix['gene_symbol'].isin(specific_genes)]
+    tissue_matrix=tissue_matrix[tissue_matrix['gene_symbol'].isin(set(tissue_genes[mm])-set(common_genes))]
     tissue_data[mm]=tissue_matrix[tissue_matrix['gene_symbol'].isin(tissue_genes[mm])]
     del(tissue_matrix)  
 
@@ -198,8 +203,60 @@ for mm in mt:    # change the tissue_saple_df into tissue_period_df
   
 
       
-res = pd.concat([period_data[mm] for mm in period_data.keys()], axis=0,ignore_index=True) # add all tissue_together
+res = pd.concat([period_data[mm] for mm in mt], axis=0,ignore_index=True) # add all tissue_together
 # prepar  color bar for clustermap
+
+
+from sklearn.decomposition import PCA
+pca = PCA(n_components=2)
+
+
+color_dict={'A1C': 2,
+ 'AMY': 1,
+ 'CBC': 0,
+ 'DFC': 4,
+ 'HIP': 1,
+ 'IPC': 2,
+ 'ITC': 4,
+ 'M1C': 2,
+ 'MD': 0,
+ 'MFC': 4,
+ 'OFC': 4,
+ 'S1C': 2,
+ 'STC': 3,
+ 'STR': 1,
+ 'V1C': 3,
+ 'VFC': 2}
+for index,mm in enumerate(mt):
+    color_dict[mm]=index
+
+res_c=pd.Series(res['tissue']).map(color_dict).values
+
+
+from mpl_toolkits import mplot3d
+res.data=res.iloc[:,:-2]
+pca.fit(res.data)
+result=pd.DataFrame(pca.transform(res.data), columns=['pca1','pca2','pca3'], index=res.data.index)
+
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(result['pca1'], result['pca2'], result['pca3'], c=res_c, cmap='tab20')
+
+projected = pca.fit_transform(res.data)
+
+
+
+
+xxxx=plt.scatter(projected[:, 0], projected[:, 1],
+            c=res_c, edgecolor='none', alpha=0.5,cmap=plt.cm.get_cmap('Set2', 5))
+plt.xlabel('component 1')
+plt.ylabel('component 2')
+plt.colorbar();
+
+
+
+
 res_pal = sns.color_palette("Set2",res['tissue'].unique().size )
 #res_pal = sns.cubehelix_palette(n_colors=res['tissue'].unique().size,light=.9, dark=.1, reverse=True,start=1, rot=-2)
 res_lut = dict(zip(map(str, res['tissue'].unique()), res_pal))
@@ -247,11 +304,8 @@ cluster_map_res_corr.ax_heatmap.set_yticklabels([])
 cluster_map_res_corr.savefig("period_genes_corr.clustermap.coolwarm.png")
 
 
-
-
-
-
-cluster_map_res_corr = sns.clustermap(res_corr_z, cmap="coolwarm",row_colors=res_colors,col_cluster=False,col_colors=res_colors,row_cluster=False)
+res_corr_z_abs=res_corr_z.abs()
+cluster_map_res_corr = sns.clustermap(res_corr_z_abs, cmap="RdPu",row_colors=res_colors,col_cluster=False,col_colors=res_colors,row_cluster=False)
 
 for label in res['tissue'].unique():
     cluster_map_res_corr.ax_col_dendrogram.bar(0, 0, color=res_lut[label],
@@ -259,7 +313,7 @@ for label in res['tissue'].unique():
 cluster_map_res_corr.ax_col_dendrogram.legend(loc="center", ncol=6)
 cluster_map_res_corr.ax_heatmap.set_yticklabels([])
 #cluster_map_res_corr.ax_col_dendrogram.set_visible(False)
-cluster_map_res_corr.savefig("period_genes_corr.not.clustermap.png")
+cluster_map_res_corr.savefig("period_genes_corr.not.clustermap_2.png")
 
 
 
@@ -312,15 +366,19 @@ ax2.set_ylabel('clustering coefficient')
 
 plt.show()
 
-
 gr_compoents=[len(c) for c in sorted(nx.connected_components(gr), key=len, reverse=True)]
 gr_compoents=nx.connected_component_subgraphs(gr)
+
+
+
+
+
 
 pos = nx.spring_layout(gr)
 colorlist = [ 'r', 'g', 'b', 'c', 'm', 'y', 'k' ,'orange','grey',]
 wcc = nx.connected_component_subgraphs(gr,gr.nodes)
-wcc_list=list(wcc)
 
+wcc_list=list(wcc)
 compo_dict={}
 for index, sg in enumerate(wcc_list):  #there's probably a more elegant approach using zip
     if sg.size()<5 :
@@ -330,14 +388,21 @@ for index, sg in enumerate(wcc_list):  #there's probably a more elegant approach
 
 
 
+
+
+
+
+
 file=open('/Users/kkwang/mywork/list_spci.txt','r')
 list_spci=file.readlines()
 for index, x in enumerate(list_spci):
     list_spci[index]=x[:-1]
 list_spci=list_spci[1:]
+
+
+
 spci_df=res[res['gene_symbol'].isin(list_spci)]
 #spci_df=spci_df.drop('gene_symbol',axis=1)
-
 new_colnames=['period'+str(x+1) for x in list(range(12))]
 
 
@@ -347,7 +412,7 @@ spci_df.columns=new_colnames
 
 spci_df['cha']=spci_df.iloc[:,:-2].max(axis=1)-spci_df.iloc[:,:-2].min(axis=1)
 
-spci_sp_df=spci_df[spci_df['cha']>4]
+spci_sp_df=spci_df[spci_df['cha']>3]
 
 
 
@@ -377,8 +442,12 @@ plt.show()
     
 
 
+file=open('schizophrenia_genes.txt','w')
 
+for x in spci_df['gene_symbol'].unique():
+    file.write(x+'\n')
+    
 
+file.close()
 
-
-
+spci_df.to_csv('spci_df.tsv',sep='\t')
