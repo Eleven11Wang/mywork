@@ -69,7 +69,7 @@ common_genes=[]
 
 
 for x in gene_count_dict.items():
-    if x[1]>=8:
+    if x[1]>=4:
         common_genes.append(x[0])
     else:
         specific_genes.append(x[0])  # find shared genes and specific genes
@@ -84,23 +84,15 @@ specific_gene_file=open('specific_gene_file.txt','w')
 specific_gene_file.write("\n".join(specific_genes))
 specific_gene_file.close()
 
-choice=combinations(tissue_genes.keys(),2)
 
-
-
-
-
-# find the shared but not common gene
 
 G=nx.Graph()
-
-shared_gene={}
+choice=combinations(tissue_genes.keys(),2)
 
 # how many genes shared by each tissue
 df=pd.DataFrame(index=mt,columns=mt)
 for x in choice:
     xxx=set(list(tissue_genes[x[0]])).intersection(list(tissue_genes[x[1]]))
-    shared_gene[x]=xxx
     G.add_edge(x[0],x[1],weight=len(xxx))
     df.loc[x[0],x[1]]=len(xxx)
     df.loc[x[1],x[0]]=len(xxx)

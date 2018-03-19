@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np 
 import seaborn as sns
-from scipy.spatial.distance import cdist,pdist,squareform
 filepath='/Users/kkwang/mywork/gene_array_matrix_csv'
 class brainspanwork(object): 
     
@@ -152,6 +151,7 @@ class expression_deal_with(sample_charactor):
         plt.tight_layout(2,1)
         plt.xticks(rotation=45)
         plt.savefig("{0}.boxplot.pdf".format(name),figsize=(12,7))
+        plt.close()
     def filter_matrix_workon(self,tissue_matrix):
         """if a gene detected in 80% of the sample
             keep it 
@@ -209,7 +209,7 @@ class basic_analysis_plot(sample_charactor):
         plt.xlabel('log2 expression')
         plt.ylabel('Distribution')
         plt.savefig('kde.distribution.pdf')
-
+        plt.close()
         
     def check_expression(self,log2_tissue_matrix):
         expression_filter=log2_tissue_matrix[log2_tissue_matrix>6].sum(axis=1).notna()
@@ -235,7 +235,7 @@ class basic_analysis_plot(sample_charactor):
 
         P=sch.dendrogram(Z,leaf_rotation=90,leaf_font_size=1,truncate_mode='lastp')
         plt.savefig('plot_dendrogram.pdf')
-
+        plt.close()
 def main():
     work=brainspanwork() # shili
     expression_matrix=work.import_expression_matrix()
@@ -248,37 +248,44 @@ def main():
     
     deal_with=expression_deal_with() # shili
     
-    work_on_tissue=True #<-- True: work on tissue matrix /False: work on whole matrix 
+    work_on_tissue=True
+    #<-- True: work on tissue matrix /False: work on whole matrix 
     tissue='all'
-    if work_on_tissue is True:
-        filted_expression_matrix=sample.filter_rare_tissue(sample_number,tissue_names,expression_matrix) 
-        #filter the tissue that less then five 
-        sample_number={key:value for key,value in sample_number.items() if value > 5}
-        columns_tissue=sample.find_columns_tissue(sample_number,tissue_names) #find which cloumns is which tissue (
 
-        tissue='CBC'  #<--change you tissue there
-        workon_matrix=deal_with.tissue_matrix_workon(columns_tissue,tissue)
-        deal_with.boxplot_of_matrix(workon_matrix,tissue) #boxplot of workon_matrix
-    else:
-        workon_matrix=expression_matrix
+   
+    filted_expression_matrix=sample.filter_rare_tissue(sample_number,tissue_names,expression_matrix) 
+    #filter the tissue that less then five 
+    sample_number={key:value for key,value in sample_number.items() if value > 5}
+    columns_tissue=sample.find_columns_tissue(sample_number,tissue_names) #find which cloumns is which tissue (
+    print(columns_tissue.keys())
     
-    workon_matrix_nor=deal_with.upperquantile_normalization(workon_matrix)
-    deal_with.boxplot_of_matrix(workon_matrix_nor,"{0}_upperquantile_normalize".format(tissue))
-    filted_workon_matrix=deal_with.filter_matrix_workon(workon_matrix)
-    log2_workon_matrix=deal_with.log2_transform(filted_workon_matrix)
+    for tis in columns_tissue.keys():
+        tissue=tis  #<--change you tissue there
+
+        if work_on_tissue is True:
+   
+              
+            workon_matrix=deal_with.tissue_matrix_workon(columns_tissue,tissue)
+            deal_with.boxplot_of_matrix(workon_matrix,tissue) #boxplot of workon_matrix
+        else:
+            workon_matrix=expression_matrix
     
-    basic_analysis=basic_analysis_plot() #shili
-    log2_workon_matrix=basic_analysis.check_expression(log2_workon_matrix)
-    ps_info=sample.add_pearsonal_info(log2_workon_matrix)
-    print(ps_info)
-    log2_workon_matrix.to_csv('{0}_log2_fiter_matrix.tsv'.format(tissue),sep='\t',index=False)
-    euclidean_distance_matrix=basic_analysis.euclidean_distance(log2_workon_matrix)
-    basic_analysis.sch_clustering(log2_workon_matrix)
+        workon_matrix_nor=deal_with.upperquantile_normalization(workon_matrix)
+        deal_with.boxplot_of_matrix(workon_matrix_nor,"{0}_upperquantile_normalize".format(tissue))
+        filted_workon_matrix=deal_with.filter_matrix_workon(workon_matrix)
+        log2_workon_matrix=deal_with.log2_transform(filted_workon_matrix)
+    
+        basic_analysis=basic_analysis_plot() #shili
+        log2_workon_matrix=basic_analysis.check_expression(log2_workon_matrix)
+        ps_info=sample.add_pearsonal_info(log2_workon_matrix)
+        log2_workon_matrix.to_csv('{0}_log2_fiter_matrix.tsv'.format(tissue),sep='\t',index=False)
+        euclidean_distance_matrix=basic_analysis.euclidean_distance(log2_workon_matrix)
+        #basic_analysis.sch_clustering(log2_workon_matrix)
 
-    #basic_analysis.KDE_plot(log2_workon_matrix,tissue,columns_tissue)
+        #basic_analysis.KDE_plot(log2_workon_matrix,tissue,columns_tissue)
 
-    #cor_workon_matrix=deal_with.matrix_corr(log2_workon_matrix)
-    #print(cor_workon_matrix.shape)
+        #cor_workon_matrix=deal_with.matrix_corr(log2_workon_matrix)
+        #print(cor_workon_matrix.shape)
 
     
 
@@ -287,3 +294,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
