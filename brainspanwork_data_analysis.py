@@ -58,7 +58,7 @@ gene_array=np.empty((0))
 
 
 for mm in mt:  # put all genes into gene_array
-    tissue_genes[mm]=pd.read_csv('/Users/kkwang/mywork/{}_limma.tsv'.format(mm),index_col=0,header=0,sep='\t').index.values    
+    tissue_genes[mm]=pd.read_csv('/Users/kkwang/mywork/gene_array_matrix_csv/{}_limma.tsv'.format(mm),index_col=0,header=0,sep='\t').index.values    
     gene_array=np.append(gene_array,tissue_genes[mm])
  
     
@@ -67,15 +67,29 @@ gene_count_dict=dict(zip(unique, counts))
 specific_genes=[]
 common_genes=[]
 
+num=8
+common_num=[]
+while num<13:
+    common_genes=[]
+    for x in gene_count_dict.items():
+        
+        if x[1]>=num:
+            common_genes.append(x[0])
+    
+    num+=1
+    common_num.append(len(common_genes))
+r1 = np.arange(len(common_num))       
+plt.bar(range(8,17,1), common_num, color = 'cyan', edgecolor = 'black',alpha=0.75)
 
-for x in gene_count_dict.items():
-    if x[1]>=8:
-        common_genes.append(x[0])
-    else:
-        specific_genes.append(x[0])  # find shared genes and specific genes
+plt.xlabel('shared tissue number')
+plt.ylabel('gene_number')
+plt.show()
+
+    #else:
+        #specific_genes.append(x[0])  # find shared genes and specific genes
     
 # write common genes to a file 
-common_gene_file=open('common_gene_file.txt','w')
+common_gene_file=open('common_gene_file_12.txt','w')
 common_gene_file.write("\n".join(common_genes))
 common_gene_file.close()
 
